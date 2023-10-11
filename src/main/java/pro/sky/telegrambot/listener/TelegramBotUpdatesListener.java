@@ -6,10 +6,15 @@ import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.model.NotificationTask;
+import pro.sky.telegrambot.repositories.NotificationTaskRepository;
 import pro.sky.telegrambot.service.NotificationTaskService;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Slf4j // logger -> log
@@ -17,6 +22,8 @@ import java.util.List;
 public class TelegramBotUpdatesListener implements UpdatesListener {
     @Autowired
     private NotificationTaskService notificationTaskService;
+    @Autowired
+    private NotificationTaskRepository notificationTaskRepository;
 
     @Autowired
     private TelegramBot telegramBot;
@@ -81,5 +88,17 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
+    }
+
+    @Scheduled(cron = "0 * * * * *") // метод вызывается в определенное время
+    //каждая звездочка - секунды, минуты, час, месяц, год, день недели * * * * * *
+    //0 - значит, что в секунды не вызываем, * - любое значение
+    private void checkReminderAndSendToUser() {
+        List<NotificationTask> listNotification = notificationTaskRepository.findAllByMessageDate(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
+        for (NotificationTask notificationTask : listNotification) {
+            SendMessage message = new SendMessage(notificationTask.getUserId(), notificationTask.getMessage());
+            telegramBot.execute(message);
+            notificationTaskRepository.delete(notificationTask);
+        }
     }
 }
