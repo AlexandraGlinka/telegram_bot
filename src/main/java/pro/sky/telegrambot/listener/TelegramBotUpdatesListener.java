@@ -68,7 +68,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     //обработка метода /add
     private void informToAddMessage(Update update) {
         Long chatId = update.message().chat().id();
-        String messageText = "Введи напоминание в формате - 01.01.2023 20:00 Напоминение";
+        String messageText = "Введи напоминание в формате - 01.01.2023 20:00 Текст";
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
