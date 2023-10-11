@@ -4,19 +4,19 @@ import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.response.SendResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.service.NotificationTaskService;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
 
+@Slf4j // logger -> log
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
-
-    private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
+    @Autowired
+    private NotificationTaskService notificationTaskService;
 
     @Autowired
     private TelegramBot telegramBot;
@@ -37,9 +37,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                         break;
                 }
             } else {
-                allCommands(update);
+                remindAddMessage(update);
             }
-            logger.info("Processing update: {}", update);
+            log.info("Processing update: {}", update);
             // Process your updates here
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -48,7 +48,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     //обработка метода /start
     private void startBot(Update update) {
         Long chatId = update.message().chat().id();
-        String username = update.message().chat().username();
+        String username = update.message().chat().firstName();
         String messageText = "Привет, " + username + "! Добро пожаловать в телеграм-бот!";
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
@@ -62,12 +62,20 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
-        allCommands(update);
+        remindAddMessage(update);
     }
 
     //перечень всех команд
-    private void allCommands(Update update) {
+    private void remindAddMessage(Update update) {
         Long chatId = update.message().chat().id();
+
+        if (notificationTaskService.saveMessage(update)) {
+            String messageText = "Напоминение удачно сохранено";
+            SendMessage message = new SendMessage(chatId, messageText);
+            telegramBot.execute(message);
+            return;
+        }
+
         String messageText = "Введите команду из списка ниже:" + "\n" +
                 "/start";
         SendMessage message = new SendMessage(chatId, messageText);

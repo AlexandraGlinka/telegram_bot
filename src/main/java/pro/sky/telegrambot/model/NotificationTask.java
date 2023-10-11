@@ -13,9 +13,9 @@ import java.util.Objects;
 public class NotificationTask {
     @Id
     @GeneratedValue
-    private Long id;
-    private Long userId;
-    private String messageText;
+    private Long id; //первичный ключ
+    private Long userId; //id пользователя/чата
+    private String message;
     private LocalDateTime messageDate;
 
 }
