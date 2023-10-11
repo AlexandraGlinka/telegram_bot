@@ -40,7 +40,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 switch (update.message().text()) {
                     case "/start": startBot(update);
                         break;
-                    default: unknown(update);
+                    case "/add": informToAddMessage(update);
+                        break;
+                    default: informThatUnknownTask(update);
                         break;
                 }
             } else {
@@ -60,10 +62,20 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
+        informToAddMessage(update);
+    }
+
+    //обработка метода /add
+    private void informToAddMessage(Update update) {
+        Long chatId = update.message().chat().id();
+        String messageText = "Введи напоминание в формате - 01.01.2023 20:00 Напоминение";
+        SendMessage message = new SendMessage(chatId, messageText);
+        //отправляем сообщение
+        telegramBot.execute(message);
     }
 
     //обработка неизвестной команды
-    private void unknown(Update update) {
+    private void informThatUnknownTask(Update update) {
         Long chatId = update.message().chat().id();
         String messageText = "Я пока не знаю такую команду";
         SendMessage message = new SendMessage(chatId, messageText);
@@ -77,14 +89,15 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         Long chatId = update.message().chat().id();
 
         if (notificationTaskService.saveMessage(update)) {
-            String messageText = "Напоминение удачно сохранено";
+            String messageText = "Напоминание удачно сохранено";
             SendMessage message = new SendMessage(chatId, messageText);
             telegramBot.execute(message);
             return;
         }
 
         String messageText = "Введите команду из списка ниже:" + "\n" +
-                "/start";
+                "/start"+ "\n" +
+                "/add";
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
@@ -101,4 +114,5 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             notificationTaskRepository.delete(notificationTask);
         }
     }
+
 }
