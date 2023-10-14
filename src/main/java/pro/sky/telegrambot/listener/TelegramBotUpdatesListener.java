@@ -4,19 +4,26 @@ import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.response.SendResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.model.NotificationTask;
+import pro.sky.telegrambot.repositories.NotificationTaskRepository;
+import pro.sky.telegrambot.service.NotificationTaskService;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Slf4j // logger -> log
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
-
-    private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
+    @Autowired
+    private NotificationTaskService notificationTaskService;
+    @Autowired
+    private NotificationTaskRepository notificationTaskRepository;
 
     @Autowired
     private TelegramBot telegramBot;
@@ -33,13 +40,15 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 switch (update.message().text()) {
                     case "/start": startBot(update);
                         break;
-                    default: unknown(update);
+                    case "/add": informToAddMessage(update);
+                        break;
+                    default: informThatUnknownTask(update);
                         break;
                 }
             } else {
-                allCommands(update);
+                remindAddMessage(update);
             }
-            logger.info("Processing update: {}", update);
+            log.info("Processing update: {}", update);
             // Process your updates here
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -48,30 +57,62 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     //обработка метода /start
     private void startBot(Update update) {
         Long chatId = update.message().chat().id();
-        String username = update.message().chat().username();
+        String username = update.message().chat().firstName();
         String messageText = "Привет, " + username + "! Добро пожаловать в телеграм-бот!";
+        SendMessage message = new SendMessage(chatId, messageText);
+        //отправляем сообщение
+        telegramBot.execute(message);
+        informToAddMessage(update);
+    }
+
+    //обработка метода /add
+    private void informToAddMessage(Update update) {
+        Long chatId = update.message().chat().id();
+        String messageText = "Введи напоминание в формате - 01.01.2023 20:00 Текст";
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
     }
 
     //обработка неизвестной команды
-    private void unknown(Update update) {
+    private void informThatUnknownTask(Update update) {
         Long chatId = update.message().chat().id();
         String messageText = "Я пока не знаю такую команду";
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
-        allCommands(update);
+        remindAddMessage(update);
     }
 
     //перечень всех команд
-    private void allCommands(Update update) {
+    private void remindAddMessage(Update update) {
         Long chatId = update.message().chat().id();
+
+        if (notificationTaskService.saveMessage(update)) {
+            String messageText = "Напоминание удачно сохранено";
+            SendMessage message = new SendMessage(chatId, messageText);
+            telegramBot.execute(message);
+            return;
+        }
+
         String messageText = "Введите команду из списка ниже:" + "\n" +
-                "/start";
+                "/start"+ "\n" +
+                "/add";
         SendMessage message = new SendMessage(chatId, messageText);
         //отправляем сообщение
         telegramBot.execute(message);
     }
+
+    @Scheduled(cron = "0 * * * * *") // метод вызывается в определенное время
+    //каждая звездочка - секунды, минуты, час, месяц, год, день недели * * * * * *
+    //0 - значит, что в секунды не вызываем, * - любое значение
+    private void checkReminderAndSendToUser() {
+        List<NotificationTask> listNotification = notificationTaskRepository.findAllByMessageDate(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
+        for (NotificationTask notificationTask : listNotification) {
+            SendMessage message = new SendMessage(notificationTask.getUserId(), notificationTask.getMessage());
+            telegramBot.execute(message);
+            notificationTaskRepository.delete(notificationTask);
+        }
+    }
+
 }

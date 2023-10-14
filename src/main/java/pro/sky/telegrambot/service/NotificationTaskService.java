@@ -1,11 +1,11 @@
 package pro.sky.telegrambot.service;
 
+import com.pengrad.telegrambot.model.Update;
 import pro.sky.telegrambot.model.NotificationTask;
 
 import java.util.List;
 
 public interface NotificationTaskService {
-    void saveMessage(NotificationTask notificationTask);
+    boolean saveMessage(Update update);
 
-    void saveTextMessage(NotificationTask notificationTask);
 }
